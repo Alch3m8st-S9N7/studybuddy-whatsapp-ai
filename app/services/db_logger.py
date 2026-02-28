@@ -27,17 +27,16 @@ class DBLogger:
             return
             
         try:
-            from app.utils.security import mask_phone
-            # We insert the masked phone number for privacy, 
-            # but you can change to raw user_phone if you want full Tracking
-            masked_phone = mask_phone(user_phone) 
+            # User requested full visibility of users, so we insert raw phone number
+            # (No masking)
+            raw_phone = user_phone
             
             self.client.table('analytics').insert({
-                "user_phone": masked_phone,
+                "user_phone": raw_phone,
                 "feature": feature,
                 "details": details
             }).execute()
-            logger.info(f"Analytics logged: {feature}")
+            logger.info(f"Analytics logged: {feature} - {details[:50]}")
         except Exception as e:
             logger.error(f"Failed to log to Supabase: {str(e)}")
 

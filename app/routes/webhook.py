@@ -330,7 +330,7 @@ async def process_chat(from_phone: str, user_message: str):
         await whatsapp_service.send_message(from_phone, response)
         
         session_manager.record_activity(from_phone)
-        db_logger.log_interaction(from_phone, "chat")
+        db_logger.log_interaction(from_phone, "chat", user_message[:500]) # Log first 500 chars of their input
         
     except Exception as e:
         logger.error(f"Chat error: {str(e)}")
