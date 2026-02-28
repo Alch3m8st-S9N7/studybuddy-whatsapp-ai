@@ -179,6 +179,7 @@ async def process_image(from_phone: str, media_id: str):
         await whatsapp_service.send_message(from_phone, result)
         
         session_manager.record_activity(from_phone)
+        db_logger.log_interaction(from_phone, "image_analysis")
     except Exception as e:
         logger.error(f"Image processing error: {str(e)}")
         await whatsapp_service.send_message(from_phone, f"❌ Error: {str(e)}")
@@ -211,6 +212,7 @@ async def process_audio(from_phone: str, media_id: str):
         await whatsapp_service.send_message(from_phone, result)
         
         session_manager.record_activity(from_phone)
+        db_logger.log_interaction(from_phone, "voice_transcription")
     except Exception as e:
         logger.error(f"Audio processing error: {str(e)}")
         await whatsapp_service.send_message(from_phone, f"❌ Error: {str(e)}")
@@ -328,6 +330,7 @@ async def process_chat(from_phone: str, user_message: str):
         await whatsapp_service.send_message(from_phone, response)
         
         session_manager.record_activity(from_phone)
+        db_logger.log_interaction(from_phone, "chat")
         
     except Exception as e:
         logger.error(f"Chat error: {str(e)}")
@@ -344,6 +347,7 @@ async def process_url(from_phone: str, url: str, original_text: str):
         session_manager.add_message(from_phone, "user", f"Summarize: {url}")
         session_manager.add_message(from_phone, "assistant", result)
         session_manager.record_activity(from_phone)
+        db_logger.log_interaction(from_phone, "url_summary", url)
         
     except Exception as e:
         logger.error(f"URL processing error: {str(e)}")
@@ -543,7 +547,7 @@ async def orchestrate_document_processing(from_phone: str, task_type: str):
         await whatsapp_service.send_message(from_phone, result)
         
         session_manager.record_activity(from_phone)
-        db_logger.log_interaction(from_phone, session.filename, f"success_{task_type}")
+        db_logger.log_interaction(from_phone, f"pdf_{task_type}", session.filename)
 
     except Exception as e:
         logger.error(f"Pipeline error: {str(e)}")
@@ -582,6 +586,7 @@ async def orchestrate_quiz(from_phone: str):
             f"I've prepared {len(questions)} questions from your document.\n"
             f"Let's test your knowledge! Good luck! 🍀")
         
+        db_logger.log_interaction(from_phone, "pdf_quiz", f"{len(questions)} questions generated")
         await send_quiz_question(from_phone)
         
     except Exception as e:
@@ -681,6 +686,7 @@ async def orchestrate_flashcards(from_phone: str):
             f"I've created {len(cards)} flashcards from your document.\n"
             f"Try to answer each one before revealing! 🧠")
         
+        db_logger.log_interaction(from_phone, "pdf_flashcards", f"{len(cards)} flashcards generated")
         await send_flashcard(from_phone)
         
     except Exception as e:

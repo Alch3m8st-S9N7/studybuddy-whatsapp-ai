@@ -21,18 +21,24 @@ class DBLogger:
             except Exception as e:
                 logger.warning(f"Could not initialize Supabase: {str(e)}")
 
-    def log_interaction(self, user_phone: str, document_name: str, status: str):
-        """Logs document interaction to a hypothetical 'interactions' table."""
+    def log_interaction(self, user_phone: str, feature: str, details: str = ""):
+        """Logs bot usage to the Supabase 'analytics' table."""
         if not self.client:
             return
             
         try:
-            data, count = self.client.table('interactions').insert({
-                "user_phone": user_phone,
-                "document_name": document_name,
-                "status": status
+            from app.utils.security import mask_phone
+            # We insert the masked phone number for privacy, 
+            # but you can change to raw user_phone if you want full Tracking
+            masked_phone = mask_phone(user_phone) 
+            
+            self.client.table('analytics').insert({
+                "user_phone": masked_phone,
+                "feature": feature,
+                "details": details
             }).execute()
+            logger.info(f"Analytics logged: {feature}")
         except Exception as e:
-            logger.error(f"Failed to log to DB: {str(e)}")
+            logger.error(f"Failed to log to Supabase: {str(e)}")
 
 db_logger = DBLogger()
