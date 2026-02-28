@@ -2,7 +2,7 @@
 Centralized Session Manager for the WhatsApp AI Bot.
 Manages per-user state: documents, quiz progress, flashcards, streaks, and preferences.
 """
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from typing import Dict, Any, List, Optional
 from app.utils.logger import logger
 
@@ -41,19 +41,48 @@ class UserSession:
         self.docs_processed: int = 0
         self.last_activity_date: Optional[date] = None
         self.streak: int = 0
+        
+        # Security: last active timestamp for auto-expiry
+        self.last_active: datetime = datetime.now()
+    
+    def touch(self):
+        """Update last active timestamp."""
+        self.last_active = datetime.now()
+    
+    def clear_sensitive_data(self):
+        """Wipe all sensitive user data (documents, chat, quiz state)."""
+        self.media_id = None
+        self.filename = None
+        self.doc_text_chunks = None
+        self.chat_history = []
+        self.quiz_questions = []
+        self.quiz_active = False
+        self.flashcards = []
+        self.flash_active = False
+        # Keep: language, streak, docs_processed (non-sensitive)
 
 
 class SessionManager:
-    """In-memory session manager for all users."""
+    """In-memory session manager with auto-expiry for user privacy."""
     
-    def __init__(self):
+    def __init__(self, expiry_hours: int = 24):
         self._sessions: Dict[str, UserSession] = {}
+        self.expiry_hours = expiry_hours
     
     def get(self, phone: str) -> UserSession:
-        """Get or create a session for a user."""
+        """Get or create a session. Auto-expires stale sensitive data."""
         if phone not in self._sessions:
             self._sessions[phone] = UserSession(phone)
-        return self._sessions[phone]
+        
+        session = self._sessions[phone]
+        
+        # Auto-expire sensitive data after inactivity
+        if (datetime.now() - session.last_active) > timedelta(hours=self.expiry_hours):
+            session.clear_sensitive_data()
+            logger.info(f"Session expired for ...{phone[-4:]}. Sensitive data cleared.")
+        
+        session.touch()
+        return session
     
     def is_first_visit(self, phone: str) -> bool:
         """Check if this is the user's first interaction."""

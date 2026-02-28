@@ -3,6 +3,7 @@ import random
 import asyncio
 from fastapi import APIRouter, Request, BackgroundTasks, Response
 from app.utils.logger import logger
+from app.utils.security import verify_webhook_signature, mask_phone, sanitize_text
 from app.services.whatsapp import whatsapp_service
 from app.services.pdf_processor import pdf_processor
 from app.services.llm_service import llm_service
@@ -31,8 +32,17 @@ async def verify_webhook(request: Request):
 @router.post("/webhook")
 async def handle_whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
     """Handles incoming WhatsApp messages — the brain of the bot."""
-    body = await request.json()
-    logger.info("Incoming webhook")
+    
+    # === SECURITY: Verify webhook signature from Meta ===
+    raw_body = await request.body()
+    signature = request.headers.get("x-hub-signature-256", "")
+    if not verify_webhook_signature(raw_body, signature):
+        logger.warning("⚠️ Rejected webhook: invalid signature")
+        return Response(status_code=403, content="Invalid signature")
+    
+    import json
+    body = json.loads(raw_body)
+    logger.info("Incoming webhook (verified)")
 
     try:
         entry = body.get("entry", [])[0]
@@ -213,6 +223,7 @@ async def process_audio(from_phone: str, media_id: str):
 
 async def handle_text(from_phone: str, message: dict, bg: BackgroundTasks):
     text = message.get("text", {}).get("body", "").strip()
+    text = sanitize_text(text)  # Security: sanitize input
     text_lower = text.lower()
     
     # --- SPECIAL COMMANDS ---

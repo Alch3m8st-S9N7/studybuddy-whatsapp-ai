@@ -11,6 +11,11 @@ class Settings(BaseSettings):
     WHATSAPP_API_TOKEN: str
     WHATSAPP_PHONE_NUMBER_ID: str
     WHATSAPP_API_VERSION: str = "v20.0"
+    WHATSAPP_APP_SECRET: Optional[str] = None  # For webhook signature verification
+
+    # Security
+    SESSION_EXPIRY_HOURS: int = 24  # Auto-delete user data after inactivity
+    MAX_MESSAGE_LENGTH: int = 5000  # Max text input length
     
     # Hugging Face LLM Conf (Legacy)
     HF_API_KEY: Optional[str] = None
