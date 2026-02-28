@@ -9,7 +9,7 @@ from app.services.llm_service import llm_service
 from app.utils.rate_limit import rate_limiter
 from app.services.db_logger import db_logger
 from app.services.session_manager import (
-    session_manager, WELCOME_MESSAGE, HELP_MESSAGE, PROCESSING_MESSAGES
+    session_manager, conversation_tracker, WELCOME_MESSAGE, HELP_MESSAGE, PROCESSING_MESSAGES
 )
 
 router = APIRouter()
@@ -49,6 +49,14 @@ async def handle_whatsapp_webhook(request: Request, background_tasks: Background
 
         # === RICH UX: Mark message as read (blue ticks) ===
         background_tasks.add_task(whatsapp_service.mark_as_read, message_id)
+
+        # === MONTHLY USAGE LIMIT CHECK ===
+        if not conversation_tracker.is_allowed(from_phone):
+            background_tasks.add_task(
+                whatsapp_service.send_message, from_phone,
+                conversation_tracker.get_limit_message()
+            )
+            return {"status": "ok"}
 
         # === FIRST-TIME WELCOME ===
         if session_manager.is_first_visit(from_phone):
@@ -231,6 +239,11 @@ async def handle_text(from_phone: str, message: dict, bg: BackgroundTasks):
     if text_lower in ["streak", "/streak"]:
         streak_msg = session_manager.get_streak_message(from_phone)
         bg.add_task(whatsapp_service.send_message, from_phone, streak_msg)
+        return
+    
+    if text_lower in ["usage", "stats", "/usage"]:
+        bg.add_task(whatsapp_service.send_message, from_phone,
+                    conversation_tracker.get_usage_stats())
         return
     
     if text_lower in ["clear", "reset", "/clear"]:

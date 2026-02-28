@@ -253,5 +253,84 @@ PROCESSING_MESSAGES = [
 ]
 
 
-# Singleton
+class ConversationTracker:
+    """Tracks monthly conversations to stay within Meta's free tier (1000/month).
+    
+    A 'conversation' in Meta's terms = one unique user chatting within a 24-hour window.
+    So if user A sends 50 messages today, that's 1 conversation.
+    If user A messages again tomorrow, that's another conversation.
+    """
+    
+    def __init__(self, monthly_limit: int = 950):
+        self.monthly_limit = monthly_limit
+        self.current_month: int = date.today().month
+        self.current_year: int = date.today().year
+        # Tracks: {phone: last_conversation_date} for counting unique daily conversations
+        self._daily_users: Dict[str, date] = {}
+        self.conversation_count: int = 0
+    
+    def _reset_if_new_month(self):
+        """Auto-reset at the start of a new month."""
+        today = date.today()
+        if today.month != self.current_month or today.year != self.current_year:
+            logger.info(f"New month detected. Resetting conversation counter. Previous month: {self.conversation_count} conversations.")
+            self.current_month = today.month
+            self.current_year = today.year
+            self._daily_users = {}
+            self.conversation_count = 0
+    
+    def is_allowed(self, phone: str) -> bool:
+        """Check if this user's message is within the free tier limit."""
+        self._reset_if_new_month()
+        
+        today = date.today()
+        last_date = self._daily_users.get(phone)
+        
+        if last_date == today:
+            # Same user, same day — this is NOT a new conversation
+            return True
+        
+        # This would be a new conversation — check the limit
+        if self.conversation_count >= self.monthly_limit:
+            return False
+        
+        # Allow and count it
+        self._daily_users[phone] = today
+        self.conversation_count += 1
+        logger.info(f"Conversation #{self.conversation_count}/{self.monthly_limit} (user: ...{phone[-4:]})")
+        return True
+    
+    def get_usage_stats(self) -> str:
+        """Returns a formatted usage stats message."""
+        self._reset_if_new_month()
+        remaining = self.monthly_limit - self.conversation_count
+        pct = round((self.conversation_count / self.monthly_limit) * 100)
+        
+        # Progress bar
+        filled = pct // 10
+        bar = "█" * filled + "░" * (10 - filled)
+        
+        return (
+            f"📊 *Monthly Usage Stats*\n\n"
+            f"[{bar}] {pct}%\n\n"
+            f"💬 Conversations used: *{self.conversation_count}* / {self.monthly_limit}\n"
+            f"✅ Remaining: *{remaining}*\n"
+            f"📅 Resets: *1st of next month*"
+        )
+    
+    def get_limit_message(self) -> str:
+        """Message shown when the monthly limit is reached."""
+        return (
+            "⏸️ *Monthly limit reached!*\n\n"
+            "I've hit the free conversation limit for this month to avoid charges. "
+            "I'll be back on the *1st of next month* — fully recharged! 🔋\n\n"
+            "💡 _Tip: Upgrade to premium for unlimited conversations!_"
+        )
+
+
+# Singletons
 session_manager = SessionManager()
+
+from app.config import settings
+conversation_tracker = ConversationTracker(monthly_limit=settings.MONTHLY_CONVERSATION_LIMIT)
+

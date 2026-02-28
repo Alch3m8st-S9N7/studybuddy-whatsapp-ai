@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     RAZORPAY_KEY_ID: Optional[str] = None
     RAZORPAY_KEY_SECRET: Optional[str] = None
 
+    # Usage Limits (stay within Meta's free tier)
+    MONTHLY_CONVERSATION_LIMIT: int = 950  # Meta gives 1000 free, we stop at 950 for safety
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 settings = Settings()
