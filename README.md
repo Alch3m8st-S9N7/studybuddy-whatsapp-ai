@@ -60,7 +60,7 @@ whatsapp-ai-bot/
 
 ### 1. Clone & Install
 ```bash
-git clone https://github.com/YOUR_USERNAME/studybuddy-whatsapp-ai.git
+git clone https://github.com/Alch3m8st-S9N7/studybuddy-whatsapp-ai.git
 cd studybuddy-whatsapp-ai
 pip install -r requirements.txt
 ```
